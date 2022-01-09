@@ -22,8 +22,8 @@ using namespace std;
 #define MINOR_API_VERSION_REQUIRED 2
 #define VPLVERSION(major, minor) (major << 16 | minor)
 #define WAIT_100_MILLISECONDS 100
-#define INPUT_DFT             "input.mp4"
-#define OUTPUT_FILE           "output.mp4"
+#define INPUT_DFT             "input"
+#define OUTPUT_FILE           "output"
 #define OUTPUT_WIDTH          640
 #define OUTPUT_HEIGHT         480
 #define MAX_PATH              260
@@ -310,13 +310,21 @@ void *InitAcceleratorHandle(mfxSession session) {
     return NULL;
 }
 
+/*!
+* @brief internal resources will be cleaned up
+*/
 void FreeAcceleratorHandle(void *accelHandle) {
 #ifdef LIBVA_SUPPORT
     vaTerminate((VADisplay)accelHandle);
 #endif
 }
+
+/*!
+* @brief Prepare Frame Info for given format
+*/
 void PrepareFrameInfo(mfxFrameInfo *fi, mfxU32 format, mfxU16 w, mfxU16 h) {
     // Video processing input data format
+    cout<<"format :"<<format<<endl;
     fi->FourCC        = format;
     fi->ChromaFormat  = MFX_CHROMAFORMAT_YUV420;
     fi->CropX         = 0;
@@ -334,6 +342,9 @@ void PrepareFrameInfo(mfxFrameInfo *fi, mfxU32 format, mfxU16 w, mfxU16 h) {
         (MFX_PICSTRUCT_PROGRESSIVE == fi->PicStruct) ? ALIGN16(fi->CropH) : ALIGN32(fi->CropH);
 }
 
+/*!
+* @brief Read Raw Frame
+*/
 mfxStatus ReadRawFrame(mfxFrameSurface1 *surface, FILE *f) {
     mfxU16 w, h, i, pitch;
     size_t bytes_read;
@@ -344,6 +355,7 @@ mfxStatus ReadRawFrame(mfxFrameSurface1 *surface, FILE *f) {
     w = info->Width;
     h = info->Height;
 
+    cout<<"info->FourCC : "<<info->FourCC<<endl;
     switch (info->FourCC) {
         case MFX_FOURCC_I420:
             // read luminance plane (Y)
@@ -399,12 +411,16 @@ mfxStatus ReadRawFrame(mfxFrameSurface1 *surface, FILE *f) {
             }
             break;
         default:
-            printf("Unsupported FourCC code, skip LoadRawFrame\n");
+            printf("Unsupported FourCC code, skip LoadRawFrame\n %u", info->FourCC);
             break;
     }
 
     return MFX_ERR_NONE;
 }
+
+/*!
+* @brief Read Raw Frame  Internal Mem
+*/
 mfxStatus ReadRawFrame_InternalMem(mfxFrameSurface1 *surface, FILE *f) {
     bool is_more_data = false;
 
@@ -432,7 +448,10 @@ mfxStatus ReadRawFrame_InternalMem(mfxFrameSurface1 *surface, FILE *f) {
 
     return (is_more_data == true) ? MFX_ERR_MORE_DATA : MFX_ERR_NONE;
 }
-// Write raw I420 frame to file
+
+/*!
+* @brief  Write raw I420 frame to file
+*/
 mfxStatus WriteRawFrame(mfxFrameSurface1 *surface, FILE *f) {
     mfxU16 w, h, i, pitch;
     mfxFrameInfo *info = &surface->Info;
@@ -440,7 +459,7 @@ mfxStatus WriteRawFrame(mfxFrameSurface1 *surface, FILE *f) {
 
     w = info->Width;
     h = info->Height;
-
+    cout<<"info->FourCC : "<<info->FourCC<<endl;
     // write the output to disk
     switch (info->FourCC) {
         case MFX_FOURCC_I420:
@@ -481,12 +500,17 @@ mfxStatus WriteRawFrame(mfxFrameSurface1 *surface, FILE *f) {
             }
             break;
         default:
+            printf("Unsupported FourCC code, skip Write \n %u", info->FourCC);
             return MFX_ERR_UNSUPPORTED;
             break;
     }
 
     return MFX_ERR_NONE;
 }
+
+/*!
+* @brief  Write raw I420 frame to file
+*/
 mfxStatus WriteRawFrame_InternalMem(mfxFrameSurface1 *surface, FILE *f) {
     mfxStatus sts = surface->FrameInterface->Map(surface, MFX_MAP_READ);
     if (sts != MFX_ERR_NONE) {
@@ -594,6 +618,7 @@ int main(int argc, char *argv[]) {
     accelHandle = InitAcceleratorHandle(session);
 
 
+
     PrepareFrameInfo(&VPPParams.vpp.In,MFX_FOURCC_I420,cliParams.srcWidth,cliParams.srcHeight);
     PrepareFrameInfo(&VPPParams.vpp.Out, MFX_FOURCC_BGRA, OUTPUT_WIDTH, OUTPUT_HEIGHT);
 
@@ -605,6 +630,7 @@ int main(int argc, char *argv[]) {
 
     printf("Processing %s -> %s\n", cliParams.infileName, OUTPUT_FILE);
 
+    //at the begining isStillGoing true
     while (isStillGoing == true) {
         // Load a new frame if not draining
         if (isDraining == false) {
@@ -649,19 +675,23 @@ int main(int argc, char *argv[]) {
                 // Need more input frames before VPP can produce an output
                 if (isDraining)
                     isStillGoing = false;
+                printf("isStillGoing %u\n",isStillGoing);
                 break;
             case MFX_ERR_MORE_SURFACE:
                 // Need more surfaces at output for additional output frames available.
                 // This applies to external memory allocations and should not be
                 // expected for a simple internal allocation case like this
+                printf("Need more surfaces at output for additional output frames available try again\n");
                 break;
             case MFX_ERR_DEVICE_LOST:
                 // For non-CPU implementations,
                 // Cleanup if device is lost
+                printf("Cleanup if device is lost try again\n");
                 break;
             case MFX_WRN_DEVICE_BUSY:
                 // For non-CPU implementations,
                 // Wait a few milliseconds then try again
+                printf("Wait a few milliseconds then try again\n");
                 break;
             default:
                 printf("unknown status %d\n", sts);
@@ -690,7 +720,7 @@ int main(int argc, char *argv[]) {
 
     if (loader)
         MFXUnload(loader);
-        
+    error = NULL;  
     return 0;
 }
 
