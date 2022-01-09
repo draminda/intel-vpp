@@ -34,7 +34,6 @@ using namespace std;
 #define ALIGN32(X)               (((mfxU32)((X) + 31)) & (~(mfxU32)31))
 #define VPLVERSION(major, minor) (major << 16 | minor)
 
-enum ExampleParams { PARAM_IMPL = 0, PARAM_INFILE, PARAM_INRES, PARAM_COUNT };
 enum ParamGroup {
     PARAMS_CREATESESSION = 0,
     PARAMS_DECODE,
@@ -324,7 +323,7 @@ void FreeAcceleratorHandle(void *accelHandle) {
 */
 void PrepareFrameInfo(mfxFrameInfo *fi, mfxU32 format, mfxU16 w, mfxU16 h) {
     // Video processing input data format
-    cout<<"format :"<<format<<endl;
+    cout<<"PrepareFrameInfo format :"<<format<<endl;
     fi->FourCC        = format;
     fi->ChromaFormat  = MFX_CHROMAFORMAT_YUV420;
     fi->CropX         = 0;
@@ -355,7 +354,7 @@ mfxStatus ReadRawFrame(mfxFrameSurface1 *surface, FILE *f) {
     w = info->Width;
     h = info->Height;
 
-    cout<<"info->FourCC : "<<info->FourCC<<endl;
+    cout<<"ReadRawFrame :info->FourCC : "<<info->FourCC<<endl;
     switch (info->FourCC) {
         case MFX_FOURCC_I420:
             // read luminance plane (Y)
@@ -459,7 +458,7 @@ mfxStatus WriteRawFrame(mfxFrameSurface1 *surface, FILE *f) {
 
     w = info->Width;
     h = info->Height;
-    cout<<"info->FourCC : "<<info->FourCC<<endl;
+    cout<<"WriteRawFrame : info->FourCC : "<<info->FourCC<<endl;
     // write the output to disk
     switch (info->FourCC) {
         case MFX_FOURCC_I420:
